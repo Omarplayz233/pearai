@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "PearAI",
+  "name": "The simple AI for GenZ humors.",
   "icons": [
     {
       "src": "favicon.ico",
