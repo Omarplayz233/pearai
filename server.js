@@ -1,7 +1,8 @@
-require('dotenv').config()
+require('dotenv').config();
 
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const BadWords = require('bad-words');
 const path = require('path');
 
 const app = express();
@@ -25,6 +26,9 @@ const generationConfig = {
 
 let conversationHistory = [];
 
+// Initialize the profanity filter
+const filter = new BadWords();
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -37,25 +41,36 @@ app.get('/', (req, res) => {
 app.post('/chat', async (req, res) => {
   const userInput = req.body.message;
 
+  // Filter profanity from user input
+  const filteredInput = filter.clean(userInput);
+
   conversationHistory.push({
     role: "user",
-    parts: [{ text: userInput }],
+    parts: [{ text: filteredInput }],
   });
 
-  const chatSession = model.startChat({
-    generationConfig,
-    history: conversationHistory,
-  });
+  try {
+    const chatSession = model.startChat({
+      generationConfig,
+      history: conversationHistory,
+    });
 
-  const result = await chatSession.sendMessage(userInput);
-  const modelResponse = result.response.text();
+    const result = await chatSession.sendMessage(filteredInput);
+    const modelResponse = result.response.text();
 
-  conversationHistory.push({
-    role: "model",
-    parts: [{ text: modelResponse }],
-  });
+    // Filter profanity from model response
+    const filteredResponse = filter.clean(modelResponse);
 
-  res.json({ response: modelResponse });
+    conversationHistory.push({
+      role: "model",
+      parts: [{ text: filteredResponse }],
+    });
+
+    res.json({ response: filteredResponse });
+  } catch (error) {
+    console.error('Error processing AI response:', error);
+    res.status(500).json({ error: 'An error occurred while processing the request.' });
+  }
 });
 
 app.listen(port, () => {
